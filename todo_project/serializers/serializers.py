@@ -23,3 +23,8 @@ class CreateUserRequest(BaseModel):
     last_name: str
     password: str
     role: UserRoleEnumerate = UserRoleEnumerate.user
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
