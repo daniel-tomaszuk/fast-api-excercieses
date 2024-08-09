@@ -2,10 +2,10 @@ import os
 import pytest
 import sys
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session
 from todo_project.database import Base, SessionLocal, engine
-from todo_project.main import app, get_db  # Assuming your FastAPI app instance is named `app` in `main.py`
+from todo_project.dependencies import get_db
+from todo_project.main import app
 
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -51,5 +51,3 @@ def client(db_session: Session):
 
     # Clean up after test
     app.dependency_overrides.clear()
-
-
