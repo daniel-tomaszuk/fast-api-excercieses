@@ -4,21 +4,30 @@ from datetime import timedelta
 from typing import Annotated
 
 import bcrypt
-
+from authlib.jose import errors
 from authlib.jose import jwt
 from fastapi import APIRouter
 from fastapi import status, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.security import OAuth2PasswordRequestForm
 
 from todo_project.dependencies import db_dependency
 from todo_project.models import Users
 from todo_project.serializers.serializers import CreateUserRequest, Token
 
-router = APIRouter()
+URL_PREFIX = "/auth"
+TOKEN_URL = "/token"
+
+router = APIRouter(
+    prefix=URL_PREFIX,
+    tags=["auth"],
+)
 
 # openssl rand -hex 32
 JWT_SECRET_KEY = os.getenv("SECRET_KEY")
 JWT_ALG = "HS512"
+
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl=URL_PREFIX + TOKEN_URL)
 
 
 async def authenticate_user(db: db_dependency, username: str, password: str) -> Users | None:
@@ -43,7 +52,22 @@ async def create_access_token(username: str, user_id: int, expires_delta: timede
     return jwt.encode(header=header, payload=payload, key=JWT_SECRET_KEY).decode("UTF-8")
 
 
-@router.post("/auth/", status_code=status.HTTP_201_CREATED)
+async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]) -> dict:
+    try:
+        payload: dict = jwt.decode(token, JWT_SECRET_KEY)
+        username: str = payload.get("sub")
+        user_id: int = payload.get("id")
+        if username is None or user_id is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials.")
+        return dict(username=username, id=user_id)
+    except errors.BadSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials.")
+
+
+user_dependency = Annotated[dict, Depends(get_current_user)]
+
+
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_user(db: db_dependency, create_user_request: CreateUserRequest):
     hashed: bytes = bcrypt.hashpw(str(create_user_request.password).encode("UTF-8"), bcrypt.gensalt())
     hashed: str = hashed.decode("UTF-8")
@@ -60,7 +84,7 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
     db.commit()
 
 
-@router.post("/token", response_model=Token)
+@router.post(TOKEN_URL, response_model=Token)
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: db_dependency,
@@ -77,4 +101,4 @@ async def login_for_access_token(
             expires_delta=timedelta(minutes=10),
         )
         return dict(access_token=token, token_type="Bearer")
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication Failed")
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials.")

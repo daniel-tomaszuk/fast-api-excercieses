@@ -1,12 +1,12 @@
-from todo_project.dependencies import db_dependency
-from todo_project.models import Todos
-
 from fastapi import APIRouter
 from fastapi import HTTPException
 from fastapi import Path
 from fastapi import status
 
+from todo_project.dependencies import db_dependency
+from todo_project.routers.auth import user_dependency
 from todo_project.serializers.serializers import TodoRequest
+from todo_project.models import Todos
 
 router = APIRouter()
 
@@ -25,8 +25,11 @@ async def read_todo(db: db_dependency, todo_id: int = Path(ge=0)):
 
 
 @router.post("/todo", status_code=status.HTTP_201_CREATED)
-async def create_todo(db: db_dependency, todo_request: TodoRequest):
-    todo_model = Todos(**todo_request.model_dump())
+async def create_todo(user: user_dependency, db: db_dependency, todo_request: TodoRequest):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="INSIDE TODO ERROR")
+
+    todo_model = Todos(**todo_request.model_dump(), owner_id=user["id"])
     db.add(todo_model)
     db.commit()
     return todo_model
