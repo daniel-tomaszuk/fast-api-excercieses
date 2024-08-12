@@ -67,7 +67,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]) -> dic
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/create-user", status_code=status.HTTP_201_CREATED)
 async def create_user(db: db_dependency, create_user_request: CreateUserRequest):
     hashed: bytes = bcrypt.hashpw(str(create_user_request.password).encode("UTF-8"), bcrypt.gensalt())
     hashed: str = hashed.decode("UTF-8")
