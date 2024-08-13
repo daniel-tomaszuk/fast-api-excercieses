@@ -23,6 +23,7 @@ class CreateUserRequest(BaseModel):
     last_name: str
     password: str
     role: UserRoleEnumerate = UserRoleEnumerate.user
+    phone_number: str | None = None
 
 
 class ResetPasswordRequest(BaseModel):
@@ -43,3 +44,11 @@ class User(BaseModel):
     last_name: str
     email: str
     role: UserRoleEnumerate = UserRoleEnumerate.user
+    phone_number: str | None = None
+
+
+class UpdateUserRequest(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    phone_number: str | None = None
