@@ -42,10 +42,11 @@ async def authenticate_user(db: db_dependency, username: str, password: str) -> 
     return user
 
 
-async def create_access_token(username: str, user_id: int, expires_delta: timedelta) -> str:
+async def create_access_token(username: str, user_id: int, role: str, expires_delta: timedelta) -> str:
     payload = dict(
         sub=username,
         id=user_id,
+        role=role,
         exp=datetime.datetime.now(datetime.timezone.utc) + expires_delta
     )
     header = dict(alg=JWT_ALG)
@@ -57,9 +58,10 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]) -> dic
         payload: dict = jwt.decode(token, JWT_SECRET_KEY)
         username: str = payload.get("sub")
         user_id: int = payload.get("id")
+        role: str = payload.get("role")
         if username is None or user_id is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials.")
-        return dict(username=username, id=user_id)
+        return dict(username=username, id=user_id, role=role)
     except errors.BadSignatureError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials.")
 
@@ -99,6 +101,7 @@ async def login_for_access_token(
             username=user.username,
             user_id=user.id,
             expires_delta=timedelta(minutes=10),
+            role=user.role,
         )
         return dict(access_token=token, token_type="Bearer")
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials.")
