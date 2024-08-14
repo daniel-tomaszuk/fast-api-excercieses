@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 class Users(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     email = Column(String, unique=True)
     username = Column(String, unique=True)
     first_name = Column(String)
@@ -19,7 +19,7 @@ class Users(Base):
 class Todos(Base):
     __tablename__ = "todos"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     title = Column(String)
     description = Column(String)
     priority = Column(Integer)
