@@ -1,6 +1,7 @@
 import json
 import typing as t
 
+from conftest import TestSession
 from todo_project.models import Todos
 
 import pytest
@@ -8,14 +9,14 @@ from fastapi import status
 
 
 @pytest.fixture
-def default_todos() -> list[dict[str, t.Any]]:
+def default_todos(regular_user) -> list[dict[str, t.Any]]:
     return [
         {
-            "id": i,
             "title": f"Title {i}",
             "description": f"Description {i}",
             "priority": i % 5,
             "complete": True if i % 2 == 1 else False,
+            "owner_id": regular_user["id"],
         } for i in range(10)
     ]
 
@@ -43,12 +44,22 @@ class TestTodos:
     def test_read_all(self, client, load_fixtures, default_todos):
         response = client.get("/")
         assert response.status_code == status.HTTP_200_OK
-        assert response.json() == default_todos
+        default_todos = [
+            {key: value for key, value in todo.items() if key != "id"} for todo in default_todos
+        ]
+        response = [
+            {key: value for key, value in row.items() if key != "id"} for row in response.json()
+        ]
+        assert response == default_todos
 
-    def test_get_one_item_by_id(self, client, load_fixtures, default_todos):
-        response = client.get("/todo/3")
+    def test_get_one_item_by_id(self, client, db_session, load_fixtures, default_todos):
+        existing_todo_id = db_session.query(Todos).first().id
+        response = client.get(f"/todo/{existing_todo_id}")
         assert response.status_code == status.HTTP_200_OK
-        assert response.json() == default_todos[3]
+        assert response.json() == {
+            **default_todos[0],
+            "id": existing_todo_id,
+        }
 
     @pytest.mark.parametrize("invalid_id", [
         -1, 5.25, "abcd", None, ";DROP DB;"
@@ -91,8 +102,9 @@ class TestTodos:
         response = client.post("/todo", data=json.dumps(invalid_payload))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    def test_update_one_item(self, client, load_fixtures, default_post_payload):
-        response = client.put("/todo/1", data=json.dumps(default_post_payload))
+    def test_update_one_item(self, client, db_session, load_fixtures, default_post_payload):
+        existing_todo_id = db_session.query(Todos).first().id
+        response = client.put(f"/todo/{existing_todo_id}", data=json.dumps(default_post_payload))
         assert response.status_code == status.HTTP_200_OK
 
     def test_update_one_item__not_found(self, client, load_fixtures, default_post_payload):
