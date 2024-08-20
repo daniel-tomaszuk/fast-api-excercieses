@@ -52,7 +52,15 @@ async def update_current_user(user: user_dependency, db: db_dependency, payload:
 async def reset_user_password(user: user_dependency, db: db_dependency, payload: ResetPasswordRequest):
     user = db.query(Users).filter(Users.id == user["id"]).first()
     old_password: str = payload.old_password
-    is_valid: bool = bcrypt.checkpw(str(old_password).encode("UTF-8"), str(user.hashed_password).encode("UTF-8"))
+    try:
+        is_valid: bool = bcrypt.checkpw(
+            str(old_password).encode("UTF-8"),
+            str(user.hashed_password).encode("UTF-8"),
+        )
+    except ValueError as e:
+        print(f"Log the error: {type(e)}: {e}")
+        is_valid = False
+
     if not is_valid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication failed.")
 

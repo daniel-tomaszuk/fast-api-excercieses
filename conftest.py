@@ -1,5 +1,7 @@
 import logging
 import os
+
+import bcrypt
 import pytest
 import sys
 import typing as t
@@ -94,6 +96,9 @@ def regular_user(db_session) -> dict:
             is_active=True,
             role="user",
             phone_number="123456789",
+            hashed_password=(
+                bcrypt.hashpw(str("test-12345").encode("UTF-8"), bcrypt.gensalt())
+            ).decode("UTF-8"),
         )
         db_session.add(regular_test_user)
         db_session.commit()
@@ -133,6 +138,9 @@ def admin_user(db_session) -> dict:
             is_active=True,
             role="admin",
             phone_number="admin-123456789",
+            hashed_password=(
+                bcrypt.hashpw(str("test-admin-12345").encode("UTF-8"), bcrypt.gensalt())
+            ).decode("UTF-8")
         )
         db_session.add(admin_test_user)
         db_session.commit()
