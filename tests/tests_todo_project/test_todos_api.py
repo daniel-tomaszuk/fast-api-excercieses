@@ -1,24 +1,9 @@
 import json
-import typing as t
-
-from conftest import TestSession
-from todo_project.models import Todos
 
 import pytest
 from fastapi import status
 
-
-@pytest.fixture
-def default_todos(regular_user) -> list[dict[str, t.Any]]:
-    return [
-        {
-            "title": f"Title {i}",
-            "description": f"Description {i}",
-            "priority": i % 5,
-            "complete": True if i % 2 == 1 else False,
-            "owner_id": regular_user["id"],
-        } for i in range(10)
-    ]
+from todo_project.models import Todos
 
 
 @pytest.fixture
@@ -31,15 +16,7 @@ def default_post_payload() -> dict:
     }
 
 
-@pytest.fixture
-def load_fixtures(db_session, default_todos):
-    for todo in default_todos:
-        todo_model = Todos(**todo)
-        db_session.add(todo_model)
-    db_session.commit()
-
-
-class TestTodos:
+class TestTodosAPI:
 
     def test_read_all(self, client, load_fixtures, default_todos):
         response = client.get("/")
