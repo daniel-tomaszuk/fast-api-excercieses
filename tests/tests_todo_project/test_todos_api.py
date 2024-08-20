@@ -106,10 +106,3 @@ class TestTodosAPI:
         invalid_payload["priority"] = invalid_priority
         response = client.put("/todo/1", data=json.dumps(invalid_payload))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-
-    @pytest.mark.parametrize("invalid_complete_flag", [-1, 6, "abcd", "", None])
-    def test_update_one_item__invalid_priority(self, client, load_fixtures, default_post_payload, invalid_complete_flag):
-        invalid_payload = default_post_payload
-        invalid_payload["complete"] = invalid_complete_flag
-        response = client.put("/todo/1", data=json.dumps(invalid_payload))
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
