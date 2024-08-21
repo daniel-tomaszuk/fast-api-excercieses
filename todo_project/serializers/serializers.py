@@ -32,8 +32,10 @@ class ResetPasswordRequest(BaseModel):
 
 
 class Token(BaseModel):
+    # https://datatracker.ietf.org/doc/html/rfc6749#section-5.1
     access_token: str
     token_type: str
+    expires_in: int
 
 
 class User(BaseModel):

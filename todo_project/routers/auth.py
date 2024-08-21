@@ -26,6 +26,7 @@ router = APIRouter(
 # openssl rand -hex 32
 JWT_SECRET_KEY = os.getenv("SECRET_KEY")
 JWT_ALG = "HS512"
+JWT_TOKEN_LIFETIME_SECONDS = 60 * 10  # 10 minutes
 
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl=URL_PREFIX + TOKEN_URL)
 
@@ -106,8 +107,8 @@ async def login_for_access_token(
         token: str = await create_access_token(
             username=user.username,
             user_id=user.id,
-            expires_delta=timedelta(minutes=10),
+            expires_delta=timedelta(seconds=JWT_TOKEN_LIFETIME_SECONDS),
             role=user.role,
         )
-        return dict(access_token=token, token_type="Bearer")
+        return dict(access_token=token, token_type="Bearer", expires_in=JWT_TOKEN_LIFETIME_SECONDS)
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials.")

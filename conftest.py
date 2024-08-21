@@ -39,7 +39,7 @@ Base = declarative_base()
 Base.metadata.create_all(bind=test_engine)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def db_session():
     """
     Create a clean database session for each test function.
@@ -54,7 +54,7 @@ def db_session():
         connection.close()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def client(db_session: Session):
     # Override the `get_db` dependency to use the `db_session` fixture
     def override_get_db():
@@ -71,7 +71,7 @@ def client(db_session: Session):
     app.dependency_overrides.clear()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def regular_user(db_session) -> dict:
     """
     Gets or creates regular (non admin) user from the DB.
@@ -113,7 +113,7 @@ def regular_user(db_session) -> dict:
         app.dependency_overrides.clear()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def admin_user(db_session) -> dict:
     """
     Gets or creates admin user from the DB.

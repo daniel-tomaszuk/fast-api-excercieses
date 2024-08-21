@@ -1,7 +1,9 @@
 import datetime
+import json
 from datetime import timedelta
 from typing import Coroutine
 
+import bcrypt
 import pytest
 import time_machine
 from authlib.jose import jwt
@@ -9,7 +11,8 @@ from fastapi import HTTPException
 from fastapi import status
 
 import todo_project.routers.auth as auth_module
-from todo_project.routers.auth import authenticate_user, create_access_token, get_current_user
+from todo_project.models import Users
+from todo_project.routers.auth import JWT_TOKEN_LIFETIME_SECONDS, authenticate_user, create_access_token, get_current_user
 
 
 @pytest.fixture()
@@ -43,7 +46,27 @@ async def jwt_invalid_token(monkeypatch, jwt_token_user_info: dict) -> str:
     return token
 
 
+@pytest.fixture()
+def create_user_payload():
+    return {
+        "username": "test-new-user-1",
+        "email": "test-new-user-email-1@example.com",
+        "first_name": "first-name",
+        "last_name": "last-name",
+        "password": "test-password-12345",
+        "role": "user",
+        "phone_number": "123-123456789",
+    }
+
+
+@pytest.fixture()
+def login_for_access_token_payload(regular_user: dict):
+    return dict(username=regular_user["username"], password="test-12345")
+
+
 class TestAuth:
+    BASE_URL = "/auth"
+
     @pytest.mark.asyncio
     async def test_authenticate_user(self, db_session, regular_user):
         user = await authenticate_user(
@@ -156,3 +179,57 @@ class TestAuth:
         # Then we expect proper unauthorized exception to rise
         assert e.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert e.value.detail == "Could not validate credentials."
+
+    def test_create_user(self, client, db_session, create_user_payload):
+        response = client.post(self.BASE_URL + "/create-user", data=json.dumps(create_user_payload))
+        assert response.status_code == status.HTTP_201_CREATED
+
+        new_user = db_session.query(Users).filter(Users.username == create_user_payload["username"]).first()
+        assert new_user
+        assert new_user.email == create_user_payload["email"]
+        assert new_user.first_name == create_user_payload["first_name"]
+        assert new_user.last_name == create_user_payload["last_name"]
+        assert new_user.role == create_user_payload["role"]
+        assert new_user.is_active is True
+        assert new_user.phone_number == create_user_payload["phone_number"]
+
+        is_valid: bool = bcrypt.checkpw(
+            str(create_user_payload["password"]).encode("UTF-8"),
+            str(new_user.hashed_password).encode("UTF-8")
+        )
+        assert is_valid is True
+
+    @pytest.mark.parametrize(
+        "missing_key", [
+            "username", "email", "first_name", "last_name", "password",
+        ]
+    )
+    def test_create_user__missing_data(self, client, db_session, create_user_payload, missing_key):
+        del create_user_payload[missing_key]
+        response = client.post(self.BASE_URL + "/create-user", data=json.dumps(create_user_payload))
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_create_user__invalid_role(self, client, db_session, create_user_payload):
+        create_user_payload["role"] = "invalid-test-role"
+        response = client.post(self.BASE_URL + "/create-user", data=json.dumps(create_user_payload))
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_login_for_access_token(self, monkeypatch, client, login_for_access_token_payload: dict):
+        monkeypatch.setattr(auth_module, "JWT_SECRET_KEY", "test-jwt-secret")
+
+        response = client.post(
+            self.BASE_URL + "/token",
+            data=login_for_access_token_payload,
+            headers=dict(
+                accept="application/json",
+                content_type="application/x-www-form-urlencoded",
+            )
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        payload = response.json()
+        assert "access_token" in payload
+        assert "token_type" in payload
+        assert "expires_in" in payload
+        assert payload["token_type"] == "Bearer"
+        assert payload["expires_in"] == JWT_TOKEN_LIFETIME_SECONDS
