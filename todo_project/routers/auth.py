@@ -56,13 +56,18 @@ async def create_access_token(username: str, user_id: int, role: str, expires_de
 async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]) -> dict:
     try:
         payload: dict = jwt.decode(token, JWT_SECRET_KEY)
+        token_valid_until = payload.get("exp", 0)
+        current_timestamp = datetime.datetime.now(datetime.timezone.utc).timestamp()
+        if token_valid_until <= current_timestamp:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials.")
+
         username: str = payload.get("sub")
         user_id: int = payload.get("id")
         role: str = payload.get("role")
-        if username is None or user_id is None:
+        if not username or not user_id:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials.")
         return dict(username=username, id=user_id, role=role)
-    except errors.BadSignatureError:
+    except (errors.BadSignatureError, errors.DecodeError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials.")
 
 
